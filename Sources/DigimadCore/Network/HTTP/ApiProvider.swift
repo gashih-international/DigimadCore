@@ -6,9 +6,19 @@
 //
 
 import Foundation
+import Combine
+
+public struct Response<T> {
+    let value: T
+    let response: URLResponse
+}
 
 public protocol ApiProvider {
-    func requestPlain<T: Decodable>(endpoint: Endpoint, responseModel: T.Type) async throws -> T
+    @available(macOS 12.0, *)
+    func requestPlain<T: Decodable>(
+        endpoint: Endpoint,
+        responseModel: T.Type
+    ) -> AnyPublisher<Response<T>, Error>
 }
 
 public extension ApiProvider {
@@ -16,7 +26,7 @@ public extension ApiProvider {
     func requestPlain<T: Decodable>(
         endpoint: Endpoint,
         responseModel: T.Type
-    ) async throws -> T {
+    ) -> AnyPublisher<Response<T>, Error> {
         var urlComponents = URLComponents()
         urlComponents.scheme = endpoint.scheme
         urlComponents.host = endpoint.host
@@ -27,7 +37,8 @@ public extension ApiProvider {
         
         guard let url = urlComponents.url else {
             Log.error(RequestError.invalidURL)
-            throw RequestError.invalidURL
+            return Fail(error: RequestError.invalidURL)
+                .eraseToAnyPublisher()
         }
         
         var request = URLRequest(url: url)
@@ -38,31 +49,13 @@ public extension ApiProvider {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         }
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request, delegate: nil)
-            
-            
-            guard let response = response as? HTTPURLResponse else {
-                throw RequestError.noResponse
+        return URLSession.shared
+            .dataTaskPublisher(for: request)
+            .tryMap { result -> Response<T> in
+                let value = try JSONDecoder().decode(T.self, from: result.data)
+                return Response(value: value, response: result.response)
             }
-            
-            switch response.statusCode {
-            case 200...299:
-                guard let decodedResponse = try? JSONDecoder().decode(responseModel, from: data) else {
-                    Log.error(RequestError.decode)
-                    throw RequestError.decode
-                }
-                Log.info("Success")
-                return decodedResponse
-            case 401:
-                Log.error(RequestError.unauthorized)
-                throw RequestError.unauthorized
-            default:
-                Log.error(RequestError.unexpectedStatusCode)
-                throw RequestError.unexpectedStatusCode
-            }
-        } catch {
-            throw RequestError.unknown
-        }
+            .receive(on: DispatchQueue.main)
+            .eraseToAnyPublisher()
     }
 }
