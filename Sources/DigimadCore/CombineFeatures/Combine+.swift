@@ -9,12 +9,12 @@ import Foundation
 import Combine
 
 @available(macOS 10.15, *)
-struct Feedback<State, Event> {
+public struct Feedback<State, Event> {
     let run: (AnyPublisher<State, Never>) -> AnyPublisher<Event, Never>
 }
 
 @available(macOS 10.15, *)
-extension Feedback {
+public extension Feedback {
     init<Effect: Publisher>(
         effects: @escaping (State) -> Effect
     ) where Effect.Output == Event, Effect.Failure == Never {
