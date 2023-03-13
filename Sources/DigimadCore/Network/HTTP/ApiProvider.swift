@@ -8,12 +8,12 @@
 import Foundation
 
 public protocol ApiProvider {
-    func requestPlain<T: Decodable>(endpoint: Endpoint, responseModel: T.Type) async throws -> T
+    public func requestPlain<T: Decodable>(endpoint: Endpoint, responseModel: T.Type) async throws -> T
 }
 
-extension ApiProvider {
+public extension ApiProvider {
     @available(macOS 12.0, *)
-    func requestPlain<T: Decodable>(
+    public func requestPlain<T: Decodable>(
         endpoint: Endpoint,
         responseModel: T.Type
     ) async throws -> T {

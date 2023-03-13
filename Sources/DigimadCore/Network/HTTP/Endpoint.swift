@@ -17,7 +17,7 @@ public protocol Endpoint {
     var body: [String:Any]? { get }
 }
 
-extension Endpoint {
+public extension Endpoint {
     var parameters: [String: String] {
         [:]
     }
